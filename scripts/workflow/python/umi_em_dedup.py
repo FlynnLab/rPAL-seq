@@ -1,50 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# umi_em_dedup.py  (SQLite-free, optimized)
+# umi_em_dedup.py  (SQLite-free, optimized)  + rarefy phase (memory-compact)
 #
 # Streaming EM and hard-pick for multi-mappers grouped by (UMI, sequence).
-# Disk footprint: shard TSVs + tiny dbm for assignments (no SQLite).
+# Added "rarefy" phase to compute UMI–SEQ rarefaction curves directly from BAM.
 #
 # Phases:
-#   em     : build shards -> reduce -> EM -> write counts (+meta). (no BAM output)
+#   em     : build shards -> reduce -> EM -> write counts (+meta).
 #   dedup  : read shards + counts -> build assignment dbm(s) -> write hard BAM (+optional TSV)
 #   all    : em + dedup in one shot
+#   rarefy : stream BAM once; deterministic sub-sampling by QNAME; count unique (UMI,SEQ) per fraction.
 #
-# Notes for users
-# - CLI compatibility: This tool accepts the same command-line options as prior
-#   versions. Any old SQLite-related flags are accepted but silently ignored.
-#
-# - Temporary state: You must still pass --tempdb. A small *marker* file is
-#   written at that path, and all working files are created under
-#   "<tempdb>.state/". You can delete both to fully clean up between runs.
-#
-# - Input BAM: Name-sorted BAM is recommended. Records with MAPQ below
-#   --min-mapq are skipped.
-#
-# - Dependencies: Requires Python, numpy, pysam, and a system 'sort' utility
-#   (used for large shard reduction). If available, gdbm is used for faster
-#   on-disk key-value stores; otherwise a stdlib dbm fallback is used.
-#
-# - Performance (phase 1: EM preparation)
-#     * Groups reads by 128-bit digest of (UMI, sequence) to cut I/O.
-#     * Uses stable sharding by CRC32(UMI) for reproducible splits.
-#     * Runs EM iterations in RAM (CSR arrays) after one external reduce pass.
-#     * External sorting is tuned (LC_ALL=C, ~50% memory, parallel workers).
-#
-# - Performance (phase 2: hard assignment)
-#     * Builds multiple small per-shard assignment DBMs in parallel (faster and
-#       more robust than one huge DB).
-#     * Caches DB lookups per read to reduce repeated queries.
-#     * Can enable HTSlib threads for faster BAM I/O via --io-threads.
-#     * Can stream the hard-assigned BAM to stdout (use '-' with --out-bam) to
-#       pipe directly into tools like `samtools sort`.
-#     * Use --no-tags to skip HP/HC/HB tag writes if you only need alignments.
-#
-# - Tuning tips:
-#     * Use --tmpdir (or set $TMPDIR) to point sorting to a fast disk.
-#     * Increase --shards for large datasets (more, smaller files).
-#     * Adjust --assign-workers and --io-threads to match available CPUs.
 
 import argparse
 import gzip
@@ -73,20 +40,21 @@ except ImportError:
 import hashlib
 import zlib
 import numpy as np
+import bisect
 
-VERSION = "2.2-sqlitefree-fast2"
+VERSION = "2.3-sqlitefree-fast2+rarefy"
 
 # ---------- CLI ----------
 
 def parse_args():
     p = argparse.ArgumentParser(
-        description="EM quant + optional hard-assigned BAM from multi-mappers (no SQLite; streaming shards)."
+        description="EM quant + optional hard-assigned BAM from multi-mappers (no SQLite; streaming shards) + rarefaction."
     )
     p.add_argument("bam", help="Input BAM/SAM (name-sorted recommended).")
 
-    # Phase control
-    p.add_argument("--phase", choices=["em", "dedup", "all"], default="all",
-                   help="Run only EM (em), only hard-pick (dedup), or both (all). Default all.")
+    # Phase control (added rarefy)
+    p.add_argument("--phase", choices=["em", "dedup", "all", "rarefy"], default="all",
+                   help="Run only EM (em), only hard-pick (dedup), both (all), or rarefaction (rarefy). Default all.")
 
     # Outputs
     p.add_argument("--out-counts", default=None, help="Output TSV of transcript counts.")
@@ -144,6 +112,18 @@ def parse_args():
     p.add_argument("--io-threads", type=int, default=0,
                    help="HTSlib threads for BAM read/write (0=auto=cpu_count).")
 
+    # Rarefaction options (NEW)
+    p.add_argument("--rarefy-out", default=None,
+                   help="Output TSV for rarefaction (required for --phase rarefy).")
+    p.add_argument("--rarefy-fractions", default="0.05,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0",
+                   help="Comma list of inclusion fractions (0–1]. Default common grid.")
+    p.add_argument("--rarefy-seed", type=int, default=1,
+                   help="Seed for deterministic sub-sampling by QNAME.")
+    p.add_argument("--rarefy-one-per-read", dest="rarefy_one_per_read", action="store_true", default=True,
+                   help="Count at most one (UMI,SEQ) per read (default True). Use --no-rarefy-one-per-read to disable.")
+    p.add_argument("--no-rarefy-one-per-read", dest="rarefy_one_per_read", action="store_false",
+                   help=argparse.SUPPRESS)
+
     p.add_argument("--quiet", action="store_true", help="Less logging.")
     return p.parse_args()
 
@@ -171,6 +151,10 @@ def read_marker(tempdb_path: str) -> dict:
 def make_group_key(umi: str, seq: str) -> str:
     """128-bit BLAKE2b hex digest of (UMI + '\t' + SEQ)."""
     return hashlib.blake2b((umi + "\t" + seq).encode("utf-8"), digest_size=16).hexdigest()
+
+def make_group_key8(umi: str, seq: str) -> bytes:
+    """Compact 64-bit (8B) key for memory-heavy rarefaction."""
+    return hashlib.blake2b((umi + "\t" + seq).encode("utf-8"), digest_size=8).digest()
 
 def stable_shard_index(umi: str, n_shards: int) -> int:
     """Stable shard index using CRC32 of UMI."""
@@ -220,6 +204,12 @@ def weight_map(rows, mode, beta, gamma):
         if not vals: return None
         minNM = min(n for _, n in vals)
         return {r: math.exp(-gamma * (n - minNM)) for (r, n) in vals}
+
+def qname_uniform01(qname: str, seed: int = 1) -> float:
+    """Deterministic uniform(0,1) from read name + seed (for rarefaction)."""
+    h = hashlib.blake2b((qname + "|" + str(seed)).encode("utf-8"), digest_size=8).digest()
+    v = int.from_bytes(h, "big", signed=False)
+    return (v / float(2**64))
 
 # ---------- Phase: build shards ----------
 
@@ -727,6 +717,171 @@ def _build_assign_one(task):
     build_assignment_dbm(dbm_path, [rp], counts, mode, beta, gamma, eps, out_hard_tsv=out_hard_tsv)
     return dbm_path
 
+# ---------- Rarefaction (NEW, memory-compact) ----------
+
+def phase_rarefy(args):
+    """
+    One-pass rarefaction with O(U+F) memory:
+      - For each read, compute u = hash(QNAME) in (0,1).
+      - Find first fraction index i where f_i > u (strict).
+      - Maintain:
+          * reads_delta[i] += 1                    (prefix sum -> reads per fraction)
+          * first_idx[gkey] = earliest i included  (for unique counts)
+    """
+    # Parse fractions
+    fracs = []
+    for tok in args.rarefy_fractions.split(","):
+        tok = tok.strip()
+        if not tok: continue
+        try:
+            f = float(tok)
+        except Exception:
+            raise ValueError(f"Bad --rarefy-fractions value: {tok}")
+        if f <= 0.0 or f > 1.0:
+            raise ValueError(f"--rarefy-fractions must be in (0,1]: got {tok}")
+        fracs.append(f)
+    fracs = sorted(set(fracs))
+    nF = len(fracs)
+    if nF == 0:
+        raise ValueError("No valid fractions parsed for --rarefy-fractions")
+
+    # prefix-sum helpers
+    reads_delta = [0] * (nF + 1)   # difference array; prefix-sum across i gives reads included at each fraction
+    first_idx = {}                 # key(bytes) -> earliest fraction index [0..nF-1]; nF means 'never'
+    INF = nF
+
+    def _prune_candidates(buf):
+        """Lightweight pruning mirroring ok_by_delta() but on tuples."""
+        if not buf:
+            return []
+        mode = args.weight_mode
+        d_as = args.perread_delta_as
+        d_nm = args.perread_delta_nm
+        if mode == "AS":
+            best = None
+            for _, _, _, asv, _ in buf:
+                if asv is not None and (best is None or asv > best):
+                    best = asv
+            if best is None:
+                return []
+            cands = [(u,s,r,a,n) for (u,s,r,a,n) in buf if a is not None and (d_as is None or a >= best - d_as)]
+            # deterministic order like ingest: AS desc, NM asc, rname asc
+            cands.sort(key=lambda t: (t[3], -(t[4] if t[4] is not None else -10**9), t[2]), reverse=True)
+        else:
+            best = None
+            for _, _, _, _, nmv in buf:
+                if nmv is not None and (best is None or nmv < best):
+                    best = nmv
+            if best is None:
+                return []
+            cands = [(u,s,r,a,n) for (u,s,r,a,n) in buf if n is not None and (d_nm is None or n <= best + d_nm)]
+            # deterministic order like ingest: NM asc, AS desc, rname asc
+            cands.sort(key=lambda t: (t[4], -(t[3] if t[3] is not None else -10**9), t[2]))
+        if args.perread_topk and len(cands) > args.perread_topk:
+            cands = cands[:args.perread_topk]
+        return cands
+
+    def flush_buf(buf, qname):
+        if not buf: return
+        cands = _prune_candidates(buf)
+        if not cands:
+            return
+
+        u = qname_uniform01(qname, args.rarefy_seed)
+        # strict inequality: include at first f where f > u
+        start = bisect.bisect_right(fracs, u)
+        if start >= nF:
+            return  # this read contributes to no fraction
+
+        # count the read via difference array
+        reads_delta[start] += 1
+
+        # determine which (UMI,SEQ) keys to consider for this read
+        if args.rarefy_one_per_read:
+            umi, seq = cands[0][0], cands[0][1]
+            if umi is not None and seq:
+                gk = make_group_key8(umi, seq)
+                prev = first_idx.get(gk, INF)
+                if start < prev:
+                    first_idx[gk] = start
+        else:
+            for (umi, seq, _, _, _) in cands:
+                if umi is None or not seq:
+                    continue
+                gk = make_group_key8(umi, seq)
+                prev = first_idx.get(gk, INF)
+                if start < prev:
+                    first_idx[gk] = start
+
+    with pysam.AlignmentFile(args.bam, "rb") as bam:
+        buf = []  # list of tuples: (umi, seq, rname, asv, nmv)
+        last_q = None
+        total = used = 0
+        for rec in bam.fetch(until_eof=True):
+            total += 1
+            if rec.is_unmapped:
+                continue
+            if rec.mapping_quality is not None and rec.mapping_quality < args.min_mapq:
+                continue
+            qn = rec.query_name
+            if last_q is not None and qn != last_q:
+                flush_buf(buf, last_q)
+                buf.clear()
+
+            seq = rec.query_sequence
+            umi = get_umi(rec, args.umi_from, args.qname_umi_split, args.umi_length)
+            rname = rec.reference_name
+            asv = nmv = None
+            try: asv = int(rec.get_tag("AS"))
+            except Exception: pass
+            try: nmv = int(rec.get_tag("NM"))
+            except Exception: pass
+
+            # require at least one usable weight tag (aligns with ingest)
+            if not seq or umi is None or not rname or (asv is None and nmv is None):
+                last_q = qn
+                continue
+
+            buf.append((umi, seq, rname, asv, nmv))
+            last_q = qn
+            used += 1
+
+        flush_buf(buf, last_q)
+
+    if not args.quiet:
+        sys.stderr.write(f"Rarefy: scanned={total}, usable_reads={used}\n")
+
+    outp = args.rarefy_out
+    if outp is None:
+        sys.stderr.write("ERROR: --rarefy-out is required for --phase rarefy\n")
+        sys.exit(2)
+
+    # finalize prefix sums for reads
+    reads = [0] * nF
+    acc = 0
+    for i in range(nF):
+        acc += reads_delta[i]
+        reads[i] = acc
+
+    # unique histogram over earliest inclusion index
+    uniq_delta = [0] * nF
+    for i in first_idx.values():
+        if i < nF:
+            uniq_delta[i] += 1
+    uniq = [0] * nF
+    acc = 0
+    for i in range(nF):
+        acc += uniq_delta[i]
+        uniq[i] = acc
+
+    with open(outp, "w", encoding="utf-8") as fh:
+        fh.write("fraction\treads_included\tunique_umi_seq\tsaturation\n")
+        for i, f in enumerate(fracs):
+            r = reads[i]
+            u = uniq[i]
+            sat = (u / r) if r > 0 else 0.0
+            fh.write(f"{f:.3f}\t{r}\t{u}\t{sat:.6f}\n")
+
 # ---------- main phases ----------
 
 def phase_em(args, state_dir):
@@ -893,9 +1048,16 @@ def main():
     if args.phase in ("dedup", "all"):
         if not args.out_bam:
             sys.stderr.write("--out-bam is required for phase dedup/all.\n"); sys.exit(2)
+    if args.phase == "rarefy":
+        if not args.rarefy_out:
+            sys.stderr.write("--rarefy-out is required for phase rarefy.\n"); sys.exit(2)
 
     state_dir = state_dir_for(args.tempdb)
     os.makedirs(state_dir, exist_ok=True)
+
+    if args.phase == "rarefy":
+        phase_rarefy(args)
+        return
 
     if args.phase in ("em", "all"):
         meta = phase_em(args, state_dir)
