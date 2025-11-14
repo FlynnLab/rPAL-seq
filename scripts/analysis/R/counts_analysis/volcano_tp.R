@@ -8,7 +8,7 @@ library(paletteer)
 group_name <- "your_sample_group"
 
 # Load sample info and extract plot name based on group_name
-sample_info <- read.csv("/path/to/transcriptome/annotation.csv", stringsAsFactors = FALSE)
+sample_info <- read.csv("/path/to/metadata.csv", stringsAsFactors = FALSE)
 plot_name <- sample_info %>%
   filter(group_name == !!group_name) %>%
   pull(plot_name)
