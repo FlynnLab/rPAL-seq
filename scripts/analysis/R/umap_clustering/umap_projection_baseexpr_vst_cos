@@ -4,28 +4,47 @@ library(ggplot2)
 library(pheatmap)
 library(umap)
 library(stringr)
-library(cluster)
 library(RColorBrewer)
 library(proxy)
 library(stats)
+library(DESeq2)
 
 # -------------------------------
 # Load and prepare input
 # -------------------------------
+ignore_list <- c("DiFia", "DiFib", "DiFic")
+expr_metric <- "vst"  # or "lognorm"
+min_presence <- 12
 
-ignore_list <- c("sample_names_to_exclude")
-files <- list.files(pattern = "^wald_all_.*\\.csv$")
-if (length(files) == 0) stop("No wald_all_*.csv files found.")
+rds_files <- list.files(pattern = "^dds_(.*)\\.rds$")
+if (length(rds_files) == 0) stop("No dds_*.rds files found.")
 
 extract_group <- function(filename) {
-  str_match(filename, "^wald_all_(.*)\\.csv$")[, 2]
+  str_match(filename, "^dds_(.*)\\.rds$")[, 2]
 }
 
-metric <- "z_LogExp_Weighted"
+summarize_base_expression <- function(dds, metric = c("vst","lognorm")) {
+  metric <- match.arg(metric)
+  keep <- colData(dds)$condition == "Input"
+  if (!any(keep)) return(NULL)
+  dds_in <- dds[, keep, drop=FALSE]
+  
+  if (metric == "vst") {
+    vs <- varianceStabilizingTransformation(dds_in, blind = TRUE)
+    X  <- assay(vs)
+  } else {
+    X <- log2(counts(dds_in, normalized = TRUE) + 1)
+  }
+  
+  base_vec <- rowMeans(X, na.rm = TRUE)
+  names(base_vec) <- rownames(dds_in)
+  return(base_vec)
+}
+
 group_vectors <- list()
 transcript_sets <- list()
 
-for (f in files) {
+for (f in rds_files) {
   group <- extract_group(f)
   
   if (group %in% ignore_list) {
@@ -33,33 +52,27 @@ for (f in files) {
     next
   }
   
-  df <- read.csv(f, stringsAsFactors = FALSE)
-  
-  required_cols <- c("z_delta", "transcript_id", "baseMean_pI", "baseMean_cI")
-  if (!all(required_cols %in% colnames(df))) {
-    warning(paste("Skipping", f, "- missing required columns"))
+  dds <- tryCatch(readRDS(f), error = function(e) NULL)
+  if (is.null(dds)) {
+    warning(paste("Skipping", f, "- could not read RDS"))
     next
   }
   
-  df <- df[complete.cases(df[, required_cols]), ]
-  if (nrow(df) == 0) {
-    warning(paste("Skipping", group, "- no valid data"))
+  vec <- summarize_base_expression(dds, metric = expr_metric)
+  if (is.null(vec) || !any(is.finite(vec))) {
+    warning(paste("Skipping", group, "- no valid Input samples"))
     next
   }
   
-  # Compute log-expression-weighted z_delta
-  df$baseMean_avg <- (df$baseMean_pI + df$baseMean_cI) / 2
-  df$log_weight <- log2(1 + df$baseMean_avg) / log2(1 + max(df$baseMean_avg))
-  df[[metric]] <- df$z_delta * df$log_weight
-  
-  group_vectors[[group]] <- setNames(df[[metric]], df$transcript_id)
-  transcript_sets[[group]] <- df$transcript_id
+  group_vectors[[group]]  <- vec
+  transcript_sets[[group]] <- names(vec)
 }
+
+if (length(group_vectors) < 3) stop("Not enough valid groups.")
 
 # -------------------------------
 # Construct group matrix
 # -------------------------------
-
 all_transcripts <- Reduce(union, transcript_sets)
 group_matrix <- do.call(rbind, lapply(group_vectors, function(vec) {
   out <- rep(NA, length(all_transcripts))
@@ -71,25 +84,60 @@ rownames(group_matrix) <- names(group_vectors)
 colnames(group_matrix) <- all_transcripts
 
 # Filter low-coverage transcripts
-min_presence <- 4
 keep_cols <- colSums(!is.na(group_matrix)) >= min_presence
 group_matrix <- group_matrix[, keep_cols]
 
 # -------------------------------
-# Clean and scale matrix  (CHANGED)
+# Batch metadata
+# -------------------------------
+batch_map <- c(
+  "U937"  = "B1",
+  "Jurkat"= "B1",
+  "HeLa"  = "B2",
+  "AML3"  = "B2"
+)
+batch <- factor(ifelse(rownames(group_matrix) %in% names(batch_map),
+                       batch_map[rownames(group_matrix)], "B0"),
+                levels = c("B0","B1","B2"))
+
+# -------------------------------
+# Residualize per gene
+# -------------------------------
+residualize_batch <- function(M, batch_factor, weights_mat = NULL) {
+  M_adj <- M
+  for (j in seq_len(ncol(M))) {
+    y  <- M[, j]
+    ok <- is.finite(y) & !is.na(batch_factor)
+    if (sum(ok) >= 3 && nlevels(droplevels(batch_factor[ok])) >= 2) {
+      if (!is.null(weights_mat)) {
+        w <- weights_mat[, j]
+        w_ok <- ifelse(is.finite(w), w, NA_real_)
+        fit <- lm(y[ok] ~ batch_factor[ok], weights = w_ok[ok])
+      } else {
+        fit <- lm(y[ok] ~ batch_factor[ok])
+      }
+      r <- rep(NA_real_, length(y))
+      r[ok] <- resid(fit) + mean(y[ok], na.rm = TRUE)
+      M_adj[, j] <- r
+    } else {
+      M_adj[, j] <- y
+    }
+  }
+  M_adj
+}
+group_matrix <- residualize_batch(group_matrix, batch)
+
+# -------------------------------
+# Clean and scale matrix
 # -------------------------------
 cm <- colMeans(group_matrix, na.rm = TRUE)
 cs <- apply(group_matrix, 2, sd, na.rm = TRUE)
-cs[!is.finite(cs) | cs == 0] <- 1  # guard
-
+cs[!is.finite(cs) | cs == 0] <- 1
 group_matrix_scaled <- sweep(sweep(group_matrix, 2, cm, "-"), 2, cs, "/")
-# NOTE: keep NA; do NOT impute to 0
 
 # -------------------------------
-# PCA for UMAP denoising (CHANGED)
+# Pairwise-complete cosine + MDS
 # -------------------------------
-
-# Pairwise-complete cosine distance that ignores NA per pair
 cosine_pairwise <- function(A) {
   n <- nrow(A)
   D <- matrix(0, n, n)
@@ -109,19 +157,15 @@ cosine_pairwise <- function(A) {
   }
   as.dist(D)
 }
-
 cosine_dist <- cosine_pairwise(group_matrix_scaled)
 mds_result <- cmdscale(cosine_dist, k = 9)
-
 
 # -------------------------------
 # UMAP
 # -------------------------------
-
 umap_config <- umap.defaults
-umap_config$min_dist <- 0.22
-umap_config$n_neighbors <- min(10, nrow(group_matrix_scaled) - 1)
-
+umap_config$min_dist <- 0.17
+umap_config$n_neighbors <- min(7, nrow(group_matrix_scaled) - 1)
 set.seed(42)
 umap_result <- umap(mds_result, config = umap_config)
 
@@ -130,33 +174,16 @@ colnames(umap_df) <- c("UMAP1", "UMAP2")
 umap_df$group <- rownames(group_matrix_scaled)
 
 # -------------------------------
-# K-means clustering (k = 2)
+# Lineage (binary)
 # -------------------------------
-
-set.seed(42)
-k_fixed <- 2
-kmeans_result <- kmeans(umap_df[, c("UMAP1", "UMAP2")], centers = k_fixed, nstart = 25)
-umap_df$cluster <- factor(kmeans_result$cluster)
+hematopoietic <- c("AML2", "AML3", "Molm13", "Jurkat", "Jeko1", "Nalm6", "U937")
+umap_df$lineage <- ifelse(umap_df$group %in% hematopoietic, "Hematopoietic", "Non-hematopoietic")
+umap_df$lineage <- factor(umap_df$lineage, levels = c("Hematopoietic", "Non-hematopoietic"))
 
 # -------------------------------
-# Classify cell types
+# Convex hulls for PRIOR LINEAGE groups
+# (reuse the former cluster palette for hull fills)
 # -------------------------------
-
-hematopoietic <- c("AML2", "AML3", "Molm13", "Jurkat", "Jeko1", "Nalm6")
-epithelial <- c("HeLa", "293T", "A549", "Huh7", "DiFi")
-mesenchymal_neural <- c("LPS853", "LN308")
-
-umap_df$cell_type <- case_when(
-  umap_df$group %in% hematopoietic ~ "Hematopoietic",
-  umap_df$group %in% epithelial ~ "Epithelial",
-  umap_df$group %in% mesenchymal_neural ~ "Mesenchymal/Neural",
-  TRUE ~ "Other"
-)
-
-# -------------------------------
-# Convex hulls for clusters
-# -------------------------------
-
 get_hulls <- function(df, cluster_col, x_col, y_col) {
   df %>%
     group_by(!!sym(cluster_col)) %>%
@@ -171,49 +198,49 @@ get_hulls <- function(df, cluster_col, x_col, y_col) {
     }) %>%
     bind_rows()
 }
-hull_df <- get_hulls(umap_df, "cluster", "UMAP1", "UMAP2")
+hull_df <- get_hulls(umap_df, "lineage", "UMAP1", "UMAP2")
 
-# -------------------------------
-# Define custom colors
-# -------------------------------
+# Hull colors = previous cluster colors
+hull_colors <- c(
+  "Hematopoietic"     = "#F7A1B2",
+  "Non-hematopoietic" = "#BCE8DD"
+)
 
-cluster_levels <- levels(umap_df$cluster)
-cluster_colors <- c("1" = "#F7A1B2", "2" = "#BCE8DD")
-names(cluster_colors) <- cluster_levels
-
-cell_type_colors <- c(
-  "Hematopoietic" = "#E01A4F",
-  "Epithelial" = "#7DCFB6",
-  "Mesenchymal/Neural" = "#F9C22E"
+# Point colors for lineage
+lineage_colors <- c(
+  "Hematopoietic"     = "#E01A4F",
+  "Non-hematopoietic" = "#7DCFB6"
 )
 
 # -------------------------------
-# UMAP Plot
+# UMAP Plot (no Fisher subtitle)
 # -------------------------------
+title_metric <- if (expr_metric == "vst") "Input VST" else "Input log2(norm+1)"
 
 umap_plot <- ggplot(umap_df, aes(x = UMAP1, y = UMAP2)) +
   geom_polygon(
     data = hull_df,
-    aes(x = UMAP1, y = UMAP2, fill = cluster, group = cluster),
+    aes(x = UMAP1, y = UMAP2, fill = lineage, group = lineage),
     alpha = 0.2,
     color = NA,
     inherit.aes = FALSE,
     show.legend = FALSE
   ) +
-  geom_point(aes(color = cell_type), size = 3) +
+  geom_point(aes(color = lineage), size = 3) +
   geom_text(
-    aes(label = group, color = cell_type),
-    vjust = 1.5,
+    aes(label = group),
+    color = "black",
+    vjust = 1.8,
     size = 3,
     show.legend = FALSE
   ) +
-  scale_fill_manual(values = cluster_colors) +
-  scale_color_manual(values = cell_type_colors) +
+  scale_fill_manual(values = hull_colors) +
+  scale_color_manual(values = lineage_colors, name = "Lineage") +
   coord_cartesian(clip = "off") +
   labs(
-    title = paste0("UMAP of Cell Lines (", metric, ") with Clusters"),
-    color = "Cell Type",
-    fill = "Cluster"
+    title = paste0("UMAP of Cell Lines (", title_metric, ", Cosine)"),
+    color = "Lineage",
+    fill = "Lineage"
   ) +
   theme_minimal(base_size = 10) +
   theme(
@@ -221,25 +248,23 @@ umap_plot <- ggplot(umap_df, aes(x = UMAP1, y = UMAP2)) +
     axis.line    = element_line(color = "black"),
     axis.ticks   = element_line(color = "black"),
     plot.title   = element_text(face = "bold", size = 10),
-    axis.title = element_text(size = 9),
-    axis.text = element_text(size = 8),
+    axis.title   = element_text(size = 9),
+    axis.text    = element_text(size = 8),
     legend.title = element_text(face = "bold", size = 9),
     legend.text  = element_text(size = 8)
   )
 
-ggsave(paste0("umap_cluster_", metric, ".pdf"), plot = umap_plot, width = 4, height = 3)
+ggsave(paste0("umap_cluster_baseexpr_", expr_metric, "_cosine.pdf"),
+       plot = umap_plot, width = 4, height = 3)
 
 # -------------------------------
 # Heatmap
 # -------------------------------
+pdf(paste0("heatmap_baseexpr_", expr_metric, "_cosine.pdf"), width = 6, height = 6)
 
-pdf(paste0("heatmap_", metric, ".pdf"), width = 6, height = 6)
-
-# Use cosine for BOTH axes
 d_rows <- cosine_pairwise(group_matrix_scaled)
 d_cols <- cosine_pairwise(t(group_matrix_scaled))
 
-# Drop any rows/cols that still produce NA/Inf distances
 Dr <- as.matrix(d_rows); Dc <- as.matrix(d_cols)
 bad_r <- which(!is.finite(rowSums(Dr)))
 bad_c <- which(!is.finite(rowSums(Dc)))
@@ -257,16 +282,12 @@ pheatmap(group_matrix_scaled,
          clustering_distance_rows = d_rows,
          clustering_distance_cols = d_cols,
          na_col = "#EEEEEE",
-         main = paste("Heatmap of", metric),
+         main = paste("Heatmap of Base Expression (", title_metric, ")", sep=""),
          show_rownames = TRUE,
          show_colnames = FALSE)
 dev.off()
 
-
 # -------------------------------
-# Save outputs
+# Save coordinates
 # -------------------------------
-
-write.csv(umap_df, paste0("umap_coordinates_", metric, ".csv"))
-
-message("✅ UMAP and heatmap saved using z_LogExp_Weighted metric")
+write.csv(umap_df, paste0("umap_coordinates_baseexpr_", expr_metric, "_cosine.csv"), row.names = FALSE)
