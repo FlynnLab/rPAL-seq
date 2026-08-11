@@ -4,9 +4,7 @@
 # method -- including eLife-style EM without UMIs -- counts PCR duplicates as molecules (~4x).
 # Uses the synthetic grid (all anchor sizes / ratios / read lengths) as replicate cells.
 suppressMessages({library(ggplot2); library(dplyr)})
-tp <- c("../theme_nature.R",  # repo copy
-        "~/git/rPAL-seq-R/theme_nature/theme_nature.R",
-        "~/Seqdata/git/rPAL_seq_R/theme_nature/theme_nature.R")
+tp <- c("../theme_nature.R")
 source(path.expand(tp[file.exists(path.expand(tp))][1]))
 suppressMessages(library(paletteer))
 luc <- as.character(paletteer_d("PrettyCols::Lucent"))

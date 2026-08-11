@@ -20,9 +20,7 @@
 # 22120338 (--mem=64G, 10x the original). Nothing is hardcoded here any more: every plotted
 # value is computed from a source table.
 suppressMessages(library(ggplot2))
-tp <- c("../theme_nature.R",  # repo copy
-        "~/git/rPAL-seq-R/theme_nature/theme_nature.R",
-        "~/Seqdata/git/rPAL_seq_R/theme_nature/theme_nature.R")
+tp <- c("../theme_nature.R")
 source(path.expand(tp[file.exists(path.expand(tp))][1]))
 suppressMessages(library(paletteer))
 luc <- as.character(paletteer_d("PrettyCols::Lucent"))

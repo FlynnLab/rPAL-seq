@@ -17,9 +17,7 @@
 # The UNCONJUGATED partner (Fluc_spike, 89 nt, same tube, same RT, no glycan) is the
 # within-library control the capped data could not support. It is the point of the figure.
 suppressPackageStartupMessages({ library(ggplot2); library(dplyr) })
-tp <- c("../theme_nature.R",  # repo copy
-        "~/git/rPAL-seq-R/theme_nature/theme_nature.R",
-        "~/Seqdata/git/rPAL_seq_R/theme_nature/theme_nature.R")
+tp <- c("../theme_nature.R")
 source(path.expand(tp[file.exists(path.expand(tp))][1]))
 
 PILE   <- "uncapped_pileups"

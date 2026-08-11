@@ -15,7 +15,7 @@
 # Run scripts from this directory (../sample_matrix.csv, ../umi_counts/... resolve).
 
 metadata:
-  sample_matrix: "../sample_matrix.csv"
+  sample_matrix: "/path/to/sample_matrix.csv"
   columns:
     sample_name: "sample_name"
     group_name: "group_name"
@@ -23,7 +23,7 @@ metadata:
     plot_name: "plot_name"
 
 counts:
-  count_matrix: "../umi_counts/count_matrix.csv"
+  count_matrix: "/path/to/count_matrix.csv"
   row_id_column: "transcript_id"
   sample_suffixes:
     control: "h"
@@ -40,15 +40,13 @@ counts:
       - "Fluc_spike"
 
 theme:
-  file: "~/git/rPAL-seq-R/theme_nature/theme_nature.R"
-  fallback_files:
-    - "~/Seqdata/git/rPAL_seq_R/theme_nature/theme_nature.R"
+  file: "../theme_nature.R"
   object: "theme_nature"
 
 references:
   # "array" version = human spike family map + the appended glyco_Fluc_spike entry.
-  transcript_family: "~/seqdata/refgenome/ncRNA/transcript2family_homo_array.csv"
-  transcript_family_spike: "~/seqdata/refgenome/ncRNA/transcript2family_homo_array.csv"
+  transcript_family: "/path/to/transcriptome/annotation.csv"
+  transcript_family_spike: "/path/to/transcriptome/annotation.csv"
 
 analysis:
   dataset_label: "glyco-Fluc titration"

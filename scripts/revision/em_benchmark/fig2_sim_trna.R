@@ -4,9 +4,7 @@
 # (top-AS)" splits only the read's co-best alignments (= their Fractional, filtered) and ~=
 # default; "fractional (all)" is the naive split-every-alignment strawman. EM uses abundance.
 suppressMessages(library(ggplot2))
-tp <- c("../theme_nature.R",  # repo copy
-        "~/git/rPAL-seq-R/theme_nature/theme_nature.R",
-        "~/Seqdata/git/rPAL_seq_R/theme_nature/theme_nature.R")
+tp <- c("../theme_nature.R")
 source(path.expand(tp[file.exists(path.expand(tp))][1]))
 suppressMessages(library(paletteer))
 luc <- as.character(paletteer_d("PrettyCols::Lucent"))   # crimson orange yellow cyan teal

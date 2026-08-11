@@ -16,9 +16,7 @@
 suppressMessages({library(ggplot2); library(e1071); library(pROC); library(paletteer)
                   library(ragg); library(vegan)})
 
-tp <- path.expand(c("../../theme_nature.R",  # repo copy
-        "~/git/rPAL-seq-R/theme_nature/theme_nature.R",
-                    "~/Seqdata/git/rPAL_seq_R/theme_nature/theme_nature.R"))
+tp <- path.expand(c("../../theme_nature.R"))
 source(tp[file.exists(tp)][1])
 luc <- as.character(paletteer_d("PrettyCols::Lucent"))
 READOUTS <- c("bold(Enrichment~intensity)~bold((italic(z)))", "bold(Expression)~bold((VST))")
