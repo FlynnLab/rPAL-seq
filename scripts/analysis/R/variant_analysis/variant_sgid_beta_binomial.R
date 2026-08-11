@@ -1,7 +1,7 @@
 library(tidyverse)
 library(limma)
 
-counts <- read_csv("counts_long.csv", show_col_types = FALSE)
+counts <- read_csv("/path/to/counts_long.csv", show_col_types = FALSE)
 
 # Long rRNAs to drop
 long_rrna_ids <- c(

@@ -26,7 +26,7 @@ replicate <- c(
 samples <- names(condition)
 
 # Load count matrix
-counts_all <- read.csv("count_matrix.csv", row.names = 1, check.names = FALSE)
+counts_all <- read.csv("/path/to/count_matrix.csv", row.names = 1, check.names = FALSE)
 counts <- counts_all[, samples]
 
 # Build colData

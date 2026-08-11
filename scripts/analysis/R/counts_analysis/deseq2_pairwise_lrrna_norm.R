@@ -2,7 +2,7 @@ library(DESeq2)
 library(dplyr)
 
 # Load count matrix
-counts <- read.csv("count_matrix.csv", row.names = 1, check.names = FALSE)
+counts <- read.csv("/path/to/count_matrix.csv", row.names = 1, check.names = FALSE)
 all_sample_names <- colnames(counts)
 
 # Load sample metadata

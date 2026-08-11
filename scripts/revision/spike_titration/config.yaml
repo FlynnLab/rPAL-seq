@@ -23,7 +23,7 @@ metadata:
     plot_name: "plot_name"
 
 counts:
-  count_matrix: "count_matrix.csv"
+  count_matrix: "/path/to/count_matrix.csv"
   row_id_column: "transcript_id"
   sample_suffixes:
     control: "h"

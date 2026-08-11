@@ -7,7 +7,7 @@ annot_files <- c(
   "Annotated_hits_total_hematopoietic.csv",
   "Annotated_hits_total_non-hematopoietic.csv"
 )
-counts_file      <- "counts_long.csv"                # MUST contain 'sample'
+counts_file      <- "/path/to/counts_long.csv"                # MUST contain 'sample'
 sample_info_file <- "/path/to/metadata.csv"
 out_prefix       <- "conversions_delta"
 
