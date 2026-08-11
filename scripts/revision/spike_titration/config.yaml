@@ -1,0 +1,260 @@
+# Run-local config for the 20260709 glyco-Fluc spike-in titration dataset.
+# >>> FOCUSED 5'-GLY-ONLY DIR: single construct, displayed as "glyco-Fluc". <<<
+# The full both-probes record is ../counts_analysis/. The rename is DISPLAY-ONLY:
+# the group KEY stays "5-gly" (matches the sample_matrix group prefix) and output
+# filenames stay 5-gly_*; only plot labels say glyco-Fluc. analysis.groups_include_regex
+# keeps any pipeline re-run restricted to the 5-gly groups.
+# Derived from rPAL-seq-R templates/counts_analysis/counts_analysis_pmac/config.template.yaml
+# and adapted for this HUMAN spike-in benchmark:
+#   * references -> human "array" family files (transcript2family_homo_array.csv)
+#   * size_factor_feature_ids -> human long-rRNA IDs, WITH NO SPIKES
+#     (this list is also the DE-exclusion list, so dropping the spikes keeps
+#      Fluc_spike + glyco_Fluc_spike IN the DESeq/Wald test - the benchmark analyte)
+#   * volcano.show_spikes -> true
+# Plus a `titration` section for the de-novo calibration analyses.
+# Run scripts from this directory (../sample_matrix.csv, ../umi_counts/... resolve).
+
+metadata:
+  sample_matrix: "../sample_matrix.csv"
+  columns:
+    sample_name: "sample_name"
+    group_name: "group_name"
+    replicate: "replicates"
+    plot_name: "plot_name"
+
+counts:
+  count_matrix: "../umi_counts/count_matrix.csv"
+  row_id_column: "transcript_id"
+  sample_suffixes:
+    control: "h"
+    input: "i"
+    ip: "p"
+  # For DE ONLY: sum these source rows into one feature and drop the sources, so
+  # deseq2_results carries a single summed spike. count_matrix.csv keeps both
+  # originals (de-novo #1 / coverage / glyco-vs-Fluc still read them). The summed
+  # feature must also exist in the transcript-family reference (biotype spike-in)
+  # so it annotates + shows as one volcano triangle.
+  merge_for_de:
+    Fluc_spike_total:
+      - "glyco_Fluc_spike"
+      - "Fluc_spike"
+
+theme:
+  file: "~/git/rPAL-seq-R/theme_nature/theme_nature.R"
+  fallback_files:
+    - "~/Seqdata/git/rPAL_seq_R/theme_nature/theme_nature.R"
+  object: "theme_nature"
+
+references:
+  # "array" version = human spike family map + the appended glyco_Fluc_spike entry.
+  transcript_family: "~/seqdata/refgenome/ncRNA/transcript2family_homo_array.csv"
+  transcript_family_spike: "~/seqdata/refgenome/ncRNA/transcript2family_homo_array.csv"
+
+analysis:
+  dataset_label: "glyco-Fluc titration"
+  group_label: "groups"
+  # FOCUSED dir: restrict the main pipeline to the 5'-glyco groups only. Any re-run
+  # of deseq2_pairwise_lrRNAnorm.R processes just these; int-gly groups are skipped.
+  groups_include_regex: "^5-gly_"
+  deseq_fit_type: "local"
+  deseq_design: "~ replicate + condition"
+  conditions:
+    control: "Control"
+    input: "Input"
+    ip: "IP"
+  condition_order:
+    - "Input"
+    - "IP"
+    - "Control"
+  suffix_to_condition:
+    h: "Control"
+    i: "Input"
+    p: "IP"
+  comparisons:
+    pI:
+      numerator: "IP"
+      denominator: "Input"
+    cI:
+      numerator: "Control"
+      denominator: "Input"
+  # Human long rRNA IDs (18S x2, 28S x5, 45S x5, mt RNR1/RNR2). NO spike-ins here:
+  # normalizing on the Fluc/glyco spikes would be circular for a spike-in benchmark,
+  # and because this list is also excluded from the DE matrix, leaving the spikes out
+  # keeps them in the DESeq2 + Wald enrichment test.
+  size_factor_feature_ids:
+    - "rRNA_RNA18SN1_166629"
+    - "rRNA_RNA18SN2_166610"
+    - "rRNA_RNA28SN1_166631"
+    - "rRNA_RNA28SN2_166612"
+    - "rRNA_RNA28SN3_166621"
+    - "rRNA_RNA28SN4_172372"
+    - "rRNA_RNA28SN5_178714"
+    - "rRNA_RNA45SN1_166625"
+    - "rRNA_RNA45SN2_166607"
+    - "rRNA_RNA45SN3_166618"
+    - "rRNA_RNA45SN4_172369"
+    - "rRNA_RNA45SN5_178711"
+    - "rRNA_RNR1_192237"
+    - "rRNA_RNR2_192239"
+  filtering:
+    min_count: 0
+    min_reps_input: 2
+    min_reps_ip: 2
+  wald:
+    directionality_log2fc_min: 0.5
+    ip_vs_input_log2fc_min: 0.5
+    ip_vs_input_padj_max: 0.05
+    ip_vs_control_padj_max: 0.05
+    empirical_null_abs_z_primary: 0.5
+    empirical_null_abs_z_fallback: 1
+    empirical_null_min_n: 10
+    empirical_null_sd_fallback: 0.3
+  volcano:
+    label_logfc_cutoff: 0.5
+    label_logpadj_cutoff: 1.3
+    show_spikes: true
+    top_label_count: 4
+    show_tp_count_subtitle: true
+    tp_count_subtitle: "Total TP count: {count}"
+    spike_biotypes:
+      - "spike-in"
+
+naming:
+  dds: "dds_{group}.rds"
+  dds_pattern: "^dds_.*\\.rds$"
+  deseq: "deseq2_results_{comparison}_{group}.csv"
+  annotated_prefix: "Annotated_"
+  annotated_pI: "Annotated_deseq2_results_pI_{group}.csv"
+  wald_all: "wald_all_{group}.csv"
+  wald_dir: "wald_dir_{group}.csv"
+  wald_tp: "wald_TP_{group}.csv"
+  wald_tp_pattern: "^wald_TP_(.*)\\.csv$"
+  family_tp: "Family_TP_{group}.csv"
+  family_tp_pattern: "^Family_TP_(.*)\\.csv$"
+  multi_overlap_all: "multi_overlap_all_families.csv"
+  multi_overlap_unique: "multi_overlap_{group}_only.csv"
+  multi_overlap_unique_pattern: "^multi_overlap_(.*)_only\\.csv$"
+  deseq_pattern: "^deseq2_results_.*\\.csv$"
+  deseq_pair_pattern: "^deseq2_results_(pI|cI)_(.*)\\.csv$"
+  annotated_pI_pattern: "Annotated_deseq2_results_pI_(.*)\\.csv"
+
+biotypes:
+  levels:
+    - "miRNA"
+    - "vault-RNA"
+    - "rRNA"
+    - "mt-rRNA"
+    - "mt-tRNA"
+    - "ribozyme"
+    - "Y-RNA"
+    - "scaRNA"
+    - "snoRNA"
+    - "snRNA"
+    - "others"
+    - "tRNA"
+  palette: "PrettyCols::Rainbow"
+
+plots:
+  dpi: 300
+  colors:
+    conditions:
+      Input: "#8C2981"
+      IP: "#E01A4F"
+      Control: "#53B3CB"
+    vst_contrasts:
+      "IP vs Input": "#8C2981"
+      "IP vs Control": "#53B3CB"
+    wald_status:
+      Significant_IPvsInput: "purple"
+      Significant_IPvsControl: "red"
+      Not Significant: "gray70"
+    venn_fills:
+      - "#8C2981"
+      - "#E01A4F"
+      - "#53B3CB"
+      - "#2A9D8F"
+      - "#F4A261"
+      - "#6A4C93"
+  pca:
+    width: 3.0
+    height: 2.5
+    filename: "PCA_{group}.pdf"
+  vst_barplot:
+    width: 4
+    height: 3
+    filename: "VST_separation_barplot.pdf"
+    summary_csv: "VST_separation_summary.csv"
+  wald:
+    width: 3
+    height: 3
+    filename: "plot_wald_{group}.pdf"
+  volcano:
+    width: 5.5
+    height: 3.2
+    filename: "Volcano_transcript_{group}.pdf"
+
+# ---------------------------------------------------------------------------
+# De-novo titration / calibration analysis parameters (de-novo #1 uses these).
+# Both 5' and internal glyco constructs were collapsed to a single
+# `glyco_Fluc_spike` reference during alignment; construct identity comes from
+# sample_matrix group_name ("<construct>_<level>").
+# ---------------------------------------------------------------------------
+titration:
+  spike:
+    glyco: "glyco_Fluc_spike"
+    total_ref: "Fluc_spike"
+  fraction_suffix:
+    control: "h"
+    input: "i"
+    ip: "p"
+  levels:
+    "0": 0
+    "1": 25
+    "2": 50
+    "3": 75
+    "4": 100
+  # Single construct: the 5'-glycan probe (the benchmark analyte), displayed as
+  # "glyco-Fluc". The KEY stays "5-gly" so scripts still match it against the
+  # sample_matrix group prefix (5-gly_0..4); do NOT rename the key without also
+  # renaming the groups. int-gly is intentionally absent (see ../counts_analysis).
+  constructs:
+    "5-gly":
+      label: "glyco-Fluc"
+      color: "#53B3CB"
+  nominal:
+    label: "nominal (theoretical)"
+    color: "grey60"
+  # constructs_include omitted: with one construct it defaults to that construct.
+  # x-axis dose for the per-replicate enrichment dose-response: "nominal" or "measured".
+  dose_axis: "nominal"
+  # ---- Post-DE detection correction (paper revision; figures only, NEVER counts/DE) ----
+  # The 5' glycan blocks TSO detection of the glyco species. Un-suppressing the glyco
+  # component of the SUMMED spike (Input counts /e_in, IP counts /beta) and re-summing
+  # yields a per-dose additive log2 offset to the summed IP/Input LFC: ~0 at 0% glyco
+  # (unglyco Fluc dominates the detected summed) rising to +log2(e_in/beta)=+0.20 at
+  # 100% (all glyco). Deterministic (SE-preserving). c=0.966 from HPLC UV peak area
+  # (0620 Peak 4; corroborated 0.982 in the 0619 run); e_in/beta anchored at 100% dose.
+  # Figure scripts source detection_correction.R and emit *_corrected.pdf when enabled.
+  detection_correction:
+    enabled: true
+    c: 0.966
+    e_in: 0.213
+    beta: 0.185
+    spike_glyco: "glyco_Fluc_spike"
+    spike_unglyco: "Fluc_spike"
+    constructs:
+      - "5-gly"
+  input_glycan_plot:
+    filename: "denovo_input_glycan_titration.pdf"
+    table: "denovo_input_glycan_titration.csv"
+    summary: "denovo_input_glycan_titration_summary.csv"
+    x_lab: "Nominal glyco-Fluc (%)"
+    y_lab: "Measured input glycan (%)"
+    title: "Input glycan titration"
+    measured_label: "measured"
+    measured_color: "#8C2981"   # Input condition color (curve is measured in the Input fraction)
+    width: 2.9
+    height: 2.9
+    point_size: 1.4
+    point_alpha: 0.9
+    line_width: 0.5

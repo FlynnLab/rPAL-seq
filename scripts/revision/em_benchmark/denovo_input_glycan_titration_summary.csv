@@ -1,0 +1,6 @@
+"construct","construct_label","level","nominal_pct","n","mean_input_glycan_pct","sd_input_glycan_pct"
+"5-gly","glyco-Fluc","0",0,3,0.00176626250159611,0.000227615060611923
+"5-gly","glyco-Fluc","1",25,3,3.43003983674884,0.655161716740378
+"5-gly","glyco-Fluc","2",50,3,10.1543588414485,1.3897586308825
+"5-gly","glyco-Fluc","3",75,3,25.8916568305409,1.97313554342821
+"5-gly","glyco-Fluc","4",100,3,99.947806167457,0.0139692361662516
