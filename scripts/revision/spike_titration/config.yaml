@@ -15,7 +15,7 @@
 # Run scripts from this directory (../sample_matrix.csv, ../umi_counts/... resolve).
 
 metadata:
-  sample_matrix: "/path/to/sample_matrix.csv"
+  sample_matrix: "/path/to/metadata.csv"
   columns:
     sample_name: "sample_name"
     group_name: "group_name"
@@ -23,7 +23,7 @@ metadata:
     plot_name: "plot_name"
 
 counts:
-  count_matrix: "/path/to/count_matrix.csv"
+  count_matrix: "count_matrix.csv"
   row_id_column: "transcript_id"
   sample_suffixes:
     control: "h"

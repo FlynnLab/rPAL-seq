@@ -52,8 +52,10 @@ unconjugated 89-nt reference, and `glyco_Fluc_spike`, the 51-nt glycan-conjugate
 cd <directory> && Rscript <script>
 ```
 
-Every path in `spike_titration/config.yaml` is a `/path/to/...` placeholder; point them at your own files
-before running. The `em_benchmark/` scripts are self-contained and run as they are.
+`spike_titration/config.yaml` uses the same placeholders as the rest of the repository —
+`/path/to/metadata.csv`, `/path/to/transcriptome/annotation.csv`, and `count_matrix.csv` relative to the
+working directory. Point them at your own files before running. The `em_benchmark/` scripts are
+self-contained and run as they are.
 
 `coverage/recompute_5f_uncapped.py` recomputes the 5'-retention metric directly from the pileups as an
 independent check of the R implementation. It takes the pileup directory as its argument:
