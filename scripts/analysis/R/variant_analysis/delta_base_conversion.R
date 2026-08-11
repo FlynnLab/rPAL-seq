@@ -8,7 +8,7 @@ annot_files <- c(
   "Annotated_hits_total_non-hematopoietic.csv"
 )
 counts_file      <- "counts_long.csv"                # MUST contain 'sample'
-sample_info_file <- "/path/to/metadata.cs"
+sample_info_file <- "/path/to/metadata.csv"
 out_prefix       <- "conversions_delta"
 
 # Group membership (match your step0)
