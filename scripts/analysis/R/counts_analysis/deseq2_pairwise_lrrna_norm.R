@@ -1,4 +1,5 @@
 library(DESeq2)
+library(dplyr)
 
 # Load count matrix
 counts <- read.csv("count_matrix.csv", row.names = 1, check.names = FALSE)
@@ -7,11 +8,16 @@ all_sample_names <- colnames(counts)
 # Load sample metadata
 sample_info <- read.csv("/path/to/metadata.csv", stringsAsFactors = FALSE)
 
+# Sample and group names are used as lookup keys against the count matrix columns.
+# Stray whitespace makes a key silently fail to match, so trim on read.
+sample_info$sample_name <- trimws(sample_info$sample_name)
+sample_info$group_name <- trimws(sample_info$group_name)
+
 # Read your mapping file
 tx2gene <- read.csv("/path/to/transcriptome/annotation.csv")
 
 # Define families of interest
-long_rrna_families <- c("45S ribosomal RNA" "28S ribosomal RNA", "18S ribosomal RNA", "l-rRNA", "s-rRNA")
+long_rrna_families <- c("45S ribosomal RNA", "28S ribosomal RNA", "18S ribosomal RNA", "l-rRNA", "s-rRNA")
 
 # Filter and extract transcript IDs
 long_rrna_ids <- tx2gene %>%
@@ -38,10 +44,15 @@ for (grp in unique(sample_info$group_name)) {
   # Expected sample column names: e.g., 1i, 1p, 1h
   expected_names <- unlist(lapply(group_samples$sample_name, make_sample_names))
   
-  # Check if all required samples exist
+  # Check if all required samples exist. A group that is short of its declared samples
+  # would otherwise be analysed at reduced n without any error, so report which columns
+  # are missing and skip rather than proceed silently.
   existing_names <- expected_names[expected_names %in% all_sample_names]
-  if (length(existing_names) < 6) {
-    message("  Skipping group ", grp, ": insufficient samples found.")
+  missing_names <- setdiff(expected_names, all_sample_names)
+  if (length(missing_names) > 0) {
+    message("  Group ", grp, ": ", length(existing_names), " of ", length(expected_names),
+            " declared samples found in the count matrix.")
+    message("    Missing: ", paste(missing_names, collapse = ", "))
     next
   }
   
