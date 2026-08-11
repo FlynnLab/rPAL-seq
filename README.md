@@ -20,7 +20,7 @@ repo-root/
 ├── data/                   # reference files
 │   ├── annotation/         # transcript-to-family CSVs
 │   ├── manaz_families/     # curated family lists
-│   └── transcriptome/      # curated FASTA reference
+│   └── transcriptome/      # curated FASTA reference, and the spike-in references
 ├── scripts/                # pipeline and analysis scripts
 │   ├── workflow/           
 │   │   ├── bash/           # preprocessing, alignment, run EM
