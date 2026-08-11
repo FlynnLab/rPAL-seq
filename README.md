@@ -58,7 +58,7 @@ Analyses added during peer review are in `scripts/revision/`, together with the 
 <p align="center">
   <img src="doc/rPAL-seq-workflow_v2.svg" alt="rPAL-seq workflow" width="600"/>
   <br/>
-  <em>Figure 1. rPAL-seq library construction. tRNA icon from BioRender.com.</em>
+  <em>Figure 1. rPAL-seq workflow. tRNA icon from BioRender.com.</em>
 </p>
 
 ```mermaid
