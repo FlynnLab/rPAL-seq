@@ -45,7 +45,7 @@ Expected outputs are individual CSV files per library containing:
 1. EM-assigned transcript counts  
 2. Per-base pileup results  
 
-Example aggregated data (matrix from multiple samples) can be found under GEO accession `GSE313898`, which combines newly generated samples with reanalysed sequencing runs first deposited under `GSE308686` for the preprint version of this work.
+Example aggregated data (matrix from multiple samples) can be found under GEO accession `GSE313898`, which includes sequencing runs first deposited under `GSE308686` for the preprint version of this work.
 
 Use the CSV files from the first step as input for `scripts/analysis/`. This identifies enriched hits by DESeq2, enriched mismatches by limma, and generates downstream statistics and plots.
 

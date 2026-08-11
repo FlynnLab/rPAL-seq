@@ -29,8 +29,8 @@ facets, because the 1-nt facet is Fig. 1k.
 ## Inputs
 
 Sequencing-derived inputs are **not** duplicated here — they come from GEO accession `GSE313898`, which
-combines newly generated samples with reanalysed sequencing runs first deposited under `GSE308686` for the
-preprint version of this work, or from the upstream steps in `scripts/workflow/` and `scripts/analysis/`:
+includes sequencing runs first deposited under `GSE308686` for the preprint version of
+this work, or from the upstream steps in `scripts/workflow/` and `scripts/analysis/`:
 
 | script | input | where it comes from |
 |---|---|---|
