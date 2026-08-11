@@ -25,8 +25,13 @@ repo-root/
 │   ├── workflow/           
 │   │   ├── bash/           # preprocessing, alignment, run EM
 │   │   └── python/         # EM posterior assignment
-│   └── analysis/
-│       └── R/              # figure generation, statistics
+│   ├── analysis/
+│   │   └── R/              # figure generation, statistics
+│   └── revision/           # analyses added during peer review, with their input tables
+│       ├── em_benchmark/       # read-assignment benchmark
+│       ├── spike_titration/    # synthetic sialoglycoRNA standard, dose-response
+│       ├── coverage/           # 5' coverage retention
+│       └── classification/     # ROC / LOOCV lineage and EV classification
 ├── doc/                    # workflow diagrams, example output
 ├── LICENSE
 └── README.md
@@ -40,11 +45,13 @@ Expected outputs are individual CSV files per library containing:
 1. EM-assigned transcript counts  
 2. Per-base pileup results  
 
-Example aggregated data (matrix from multiple samples) can be found under GEO accession `GSE308686`.
+Example aggregated data (matrix from multiple samples) can be found under GEO accession `GSE313898`, which supersedes `GSE308686`, deposited for the preprint version of this work.
 
 Use the CSV files from the first step as input for `scripts/analysis/`. This identifies enriched hits by DESeq2, enriched mismatches by limma, and generates downstream statistics and plots.
 
 Example volcano plots are available in `doc/`
+
+Analyses added during peer review are in `scripts/revision/`, together with the input tables needed to regenerate each panel. See [`scripts/revision/README.md`](scripts/revision/README.md) for the panel-by-panel map; those scripts follow a different, config-driven convention and are kept separate for that reason.
 
 ## Workflow Diagrams
 
