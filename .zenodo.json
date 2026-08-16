@@ -1,0 +1,55 @@
+{
+  "upload_type": "software",
+  "title": "rPAL-seq: pipeline for glycoRNA sequencing and analysis",
+  "version": "1.0.0",
+  "language": "eng",
+  "access_right": "open",
+  "license": "GPL-3.0-or-later",
+  "description": "<p>Scripts, reference data and an example workflow for rPAL-seq, a method for <em>de novo</em> discovery and profiling of sialic acid modified, glycosylated RNAs (sialoglycoRNAs).</p><p>The pipeline covers adapter and UMI trimming (cutadapt), alignment to a curated noncoding RNA reference (bowtie2), UMI-aware expectation-maximization quantification that resolves multi-mapping among near-identical noncoding RNA paralogs, differential enrichment analysis against heat-inactivated-sialidase mock-release controls (DESeq2), and per-base variant signature analysis (samtools mpileup, cpup, limma).</p><p>This release accompanies Ge, R. <em>et al.</em>, <em>Catch and release of sialoglycoRNAs enables sequencing-based profiling across cellular and extracellular material</em>.</p>",
+  "creators": [
+    {
+      "name": "Ge, Ruiqi",
+      "affiliation": "Stem Cell and Regenerative Biology Program, Division of Hematology/Oncology, Boston Children's Hospital; Department of Pediatric Oncology, Dana-Farber Cancer Institute; Harvard Medical School, Boston, MA, USA"
+    },
+    {
+      "name": "Flynn, Ryan A.",
+      "affiliation": "Stem Cell and Regenerative Biology Program, Division of Hematology/Oncology, Boston Children's Hospital; Department of Pediatric Oncology, Dana-Farber Cancer Institute; Harvard Medical School, Boston, MA, USA"
+    }
+  ],
+  "keywords": [
+    "glycoRNA",
+    "sialoglycoRNA",
+    "rPAL-seq",
+    "small RNA sequencing",
+    "noncoding RNA",
+    "unique molecular identifier",
+    "expectation-maximization",
+    "bioinformatics pipeline"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "10.1101/2025.10.04.680438",
+      "relation": "isSupplementTo",
+      "scheme": "doi",
+      "resource_type": "publication-preprint"
+    },
+    {
+      "identifier": "https://github.com/FlynnLab/rPAL-seq",
+      "relation": "isSupplementTo",
+      "scheme": "url",
+      "resource_type": "software"
+    },
+    {
+      "identifier": "10.1016/j.cell.2024.07.044",
+      "relation": "cites",
+      "scheme": "doi",
+      "resource_type": "publication-article"
+    },
+    {
+      "identifier": "10.1016/j.cell.2021.04.023",
+      "relation": "cites",
+      "scheme": "doi",
+      "resource_type": "publication-article"
+    }
+  ]
+}

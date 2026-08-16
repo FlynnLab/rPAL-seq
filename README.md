@@ -2,7 +2,7 @@
 Pipeline for glycoRNA sequencing and analysis
 
 ## Overview
-This repository contains scripts, reference data and example workflow to reproduce the computational analysis and figures from [Ge, R. et al.](https://doi.org/xx.xxxx).
+This repository contains scripts, reference data and example workflow to reproduce the computational analysis and figures from [Ge, R. et al.](https://doi.org/10.1101/2025.10.04.680438).
 rPAL-seq profiles sialoglycoRNA ([Flynn, R.A. et al. *Cell*, 2021](https://doi.org/10.1016/j.cell.2021.04.023)) through chemical conversion, glycan-specific catch and release, followed by optimized small ncRNA library construction (Fig. 1) and a computational analysis pipeline (Fig. 2).
 
 ## Dependencies
@@ -39,7 +39,7 @@ repo-root/
 
 ## Usage
 Use index-demultiplexed `fastq.gz` files as the input for `scripts/workflow/`.  
-The order of processing is documented in the [paper](https://doi.org/xx.xxxx) and illustrated in Fig. 2.  
+The order of processing is documented in the [paper](https://doi.org/10.1101/2025.10.04.680438) and illustrated in Fig. 2.  
 
 Expected outputs are individual CSV files per library containing:  
 1. EM-assigned transcript counts  

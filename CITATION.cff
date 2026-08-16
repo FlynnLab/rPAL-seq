@@ -1,0 +1,100 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software, please cite both the software itself and the
+  paper it accompanies.
+title: "rPAL-seq: pipeline for glycoRNA sequencing and analysis"
+abstract: >-
+  Scripts, reference data and an example workflow for rPAL-seq, a method for
+  de novo discovery and profiling of sialic acid modified, glycosylated RNAs
+  (sialoglycoRNAs). The pipeline covers adapter and UMI trimming, alignment to
+  a curated noncoding RNA reference, UMI-aware expectation-maximization
+  quantification of multi-mapping reads, differential enrichment analysis, and
+  per-base variant signature analysis.
+type: software
+version: 1.0.0
+date-released: "2026-08-11"
+license: GPL-3.0-or-later
+repository-code: "https://github.com/FlynnLab/rPAL-seq"
+url: "https://github.com/FlynnLab/rPAL-seq"
+keywords:
+  - glycoRNA
+  - sialoglycoRNA
+  - rPAL-seq
+  - small RNA sequencing
+  - noncoding RNA
+  - unique molecular identifier
+  - expectation-maximization
+authors:
+  - family-names: Ge
+    given-names: Ruiqi
+    affiliation: >-
+      Stem Cell and Regenerative Biology Program, Division of
+      Hematology/Oncology, Boston Children's Hospital; Department of Pediatric
+      Oncology, Dana-Farber Cancer Institute; Harvard Medical School, Boston,
+      MA, USA
+    # orcid: "https://orcid.org/0000-0000-0000-0000"   # AU: add
+  - family-names: Flynn
+    given-names: Ryan A.
+    email: ryan.flynn@childrens.harvard.edu
+    affiliation: >-
+      Stem Cell and Regenerative Biology Program, Division of
+      Hematology/Oncology, Boston Children's Hospital; Department of Pediatric
+      Oncology, Dana-Farber Cancer Institute; Harvard Medical School, Boston,
+      MA, USA
+    # orcid: "https://orcid.org/0000-0000-0000-0000"   # AU: add
+preferred-citation:
+  type: article
+  title: >-
+    Catch and release of sialoglycoRNAs enables sequencing-based profiling
+    across cellular and extracellular material
+  year: 2025
+  journal: bioRxiv
+  doi: 10.1101/2025.10.04.680438
+  authors:
+    - family-names: Ge
+      given-names: Ruiqi
+    - family-names: Jeppesen
+      given-names: Dennis K.
+    - family-names: Khatkar
+      given-names: Pooja
+    - family-names: Rai
+      given-names: Sandeep K.
+    - family-names: Williams
+      given-names: Anastasia
+    - family-names: Patil
+      given-names: Kajal
+    - family-names: Zhang
+      given-names: Qin
+    - family-names: Higginbotham
+      given-names: James N.
+    - family-names: Kashanchi
+      given-names: Fatah
+    - family-names: Coffey
+      given-names: Robert J.
+    - family-names: Flynn
+      given-names: Ryan A.
+references:
+  - type: article
+    title: >-
+      Small RNAs are modified with N-glycans and displayed on the surface of
+      living cells
+    year: 2021
+    journal: Cell
+    volume: 184
+    doi: 10.1016/j.cell.2021.04.023
+    authors:
+      - family-names: Flynn
+        given-names: Ryan A.
+      - name: "and others"
+  - type: article
+    title: >-
+      The modified RNA base acp3U is an attachment site for N-glycans in
+      glycoRNA
+    year: 2024
+    journal: Cell
+    volume: 187
+    doi: 10.1016/j.cell.2024.07.044
+    authors:
+      - family-names: Xie
+        given-names: Yixuan
+      - name: "and others"
