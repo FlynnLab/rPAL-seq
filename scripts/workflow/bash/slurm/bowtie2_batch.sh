@@ -12,7 +12,7 @@
 WORKDIR="/path/to/workdir"
 INPUT_DIR="$WORKDIR/cutadapt/final"
 LOG_DIR="$WORKDIR/logs"
-SCRIPTS_DIR="/path/to/rPAL-seq/scripts"
+SCRIPTS_DIR="/path/to/rPAL-seq/scripts/workflow"
 
 # Create necessary directories
 mkdir -p "$LOG_DIR"
@@ -24,4 +24,4 @@ FASTQ_LIST=($(find "$INPUT_DIR" -name "*.fastq.gz"))
 export WORKDIR
 
 # Run in parallel
-parallel --jobs 4 "bash $SCRIPTS_DIR/bowtie2.sh {}" ::: "${FASTQ_LIST[@]}"
+parallel --jobs 4 "bash $SCRIPTS_DIR/bash/worker/bowtie2.sh {}" ::: "${FASTQ_LIST[@]}"

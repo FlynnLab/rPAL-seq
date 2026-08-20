@@ -8,7 +8,7 @@ source /path/to/venv/bin/activate
 # Set WORKDIR if not externally defined
 WORKDIR="${WORKDIR:-/path/to/workdir}"
 
-SCRIPTS_DIR="/path/to/rPAL-seq/scripts"
+SCRIPTS_DIR="/path/to/rPAL-seq/scripts/workflow"
 OUTPUT_DIR="$WORKDIR/umi_em"
 STATS_DIR="$OUTPUT_DIR/stats"
 STEP1_DIR="$OUTPUT_DIR/step1"
@@ -119,7 +119,7 @@ else
     if [[ "$STREAM_SORT" == "1" ]]; then
       echo ">>> Streaming hard-pick into samtools sort (no intermediate qname BAM)"
       set -o pipefail
-      python "$SCRIPTS_DIR/umi_em_dedup.py" "$QNAME_BAM" \
+      python "$SCRIPTS_DIR/python/umi_em_dedup.py" "$QNAME_BAM" \
         --phase dedup \
         --out-counts "$COUNTS_TSV" \
         --out-bam - \
@@ -144,7 +144,7 @@ else
       # mark that EM_QNAME_BAM is 'produced' via stream to keep idempotence logic happy
       : > "$EM_QNAME_BAM"
     else
-      python "$SCRIPTS_DIR/umi_em_dedup.py" "$QNAME_BAM" \
+      python "$SCRIPTS_DIR/python/umi_em_dedup.py" "$QNAME_BAM" \
         --phase dedup \
         --out-counts "$COUNTS_TSV" \
         --out-bam "$EM_QNAME_BAM" \

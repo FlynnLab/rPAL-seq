@@ -12,7 +12,7 @@
 WORKDIR="/path/to/workdir"
 INPUT_DIR="$WORKDIR/bowtie_alignment/aligned"
 LOG_DIR="$WORKDIR/logs"
-SCRIPTS_DIR="/path/to/rPAL-seq/scripts"
+SCRIPTS_DIR="/path/to/rPAL-seq/scripts/workflow"
 
 # Create necessary directories
 mkdir -p "$LOG_DIR"
@@ -24,4 +24,4 @@ BAM_LIST=($(find "$INPUT_DIR" -type f -name "*.bam"))
 export WORKDIR
 
 # Run in parallel
-parallel --jobs 4 "bash $SCRIPTS_DIR/umi_em_rarefy.sh {}" ::: "${BAM_LIST[@]}"
+parallel --jobs 4 "bash $SCRIPTS_DIR/bash/worker/umi_em_rarefy.sh {}" ::: "${BAM_LIST[@]}"

@@ -66,11 +66,12 @@ serially through the workers.
 
 ## Placeholders to set
 
-Beyond `WORKDIR`, note two that are easy to get wrong:
+Beyond `WORKDIR`:
 
-- **`SCRIPTS_DIR`** in the `slurm/` wrappers is written as `/path/to/rPAL-seq/scripts`, but the
-  wrappers invoke `bash $SCRIPTS_DIR/<worker>.sh`. Point it at the worker directory itself,
-  `/path/to/rPAL-seq/scripts/workflow/bash/worker`, or the wrapper will not find the worker.
+- **`SCRIPTS_DIR`** resolves to this directory, i.e. `/path/to/rPAL-seq/scripts/workflow` on a plain
+  clone. Each call site appends its own subpath from there: the `slurm/` wrappers invoke
+  `$SCRIPTS_DIR/bash/worker/<worker>.sh`, and the EM workers invoke
+  `$SCRIPTS_DIR/python/umi_em_dedup.py`. One value serves both.
 - **`REF`** is set separately in two workers: `bowtie2.sh` wants a bowtie2 index prefix
   (`/path/to/bowtie2/index/prefix`, built from `data/transcriptome/ncrna_*.fa`), while
   `cpup.sh` wants the FASTA itself (`/path/to/transcriptome.fa`).

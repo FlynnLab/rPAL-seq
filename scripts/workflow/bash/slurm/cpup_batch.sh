@@ -13,7 +13,7 @@ WORKDIR="/path/to/workdir"
 INPUT_DIR="$WORKDIR/umi_em/bam"
 OUTPUT_DIR="$WORKDIR/pileup_results"
 LOG_DIR="$WORKDIR/logs"
-SCRIPTS_DIR="/path/to/rPAL-seq/scripts"
+SCRIPTS_DIR="/path/to/rPAL-seq/scripts/workflow"
 
 # Create necessary directories
 mkdir -p "$OUTPUT_DIR" "$LOG_DIR"
@@ -22,4 +22,4 @@ mkdir -p "$OUTPUT_DIR" "$LOG_DIR"
 BAM_LIST=($(find "$INPUT_DIR" -name "*.emhard.coord.bam"))
 
 # Run in parallel
-parallel --jobs 4 "bash $SCRIPTS_DIR/cpup.sh {} $OUTPUT_DIR/{/.}.cpup.txt" ::: "${BAM_LIST[@]}"
+parallel --jobs 4 "bash $SCRIPTS_DIR/bash/worker/cpup.sh {} $OUTPUT_DIR/{/.}.cpup.txt" ::: "${BAM_LIST[@]}"
