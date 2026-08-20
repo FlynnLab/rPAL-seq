@@ -18,7 +18,7 @@ Command-line tools:
 | `cutadapt` | 4.9 |
 | `bowtie2` | 2.5.4 |
 | `samtools` | 1.21 |
-| [`cpup`](https://github.com/y9c/cpup) | 0.1 |
+| `cpup` | 0.1 |
 
 R packages: `DESeq2` 1.42.1, `limma` 3.58.1, plus `dplyr`, `readr`, `tidyr`, `stringr`, `purrr`,
 `tibble`, `ggplot2`, `ggrepel`, `scales`, `eulerr` and `ComplexUpset` for the plotting scripts.
@@ -57,8 +57,8 @@ about 12 seconds on an 8-core machine with 8 GB of RAM.
 
 ## Installation
 
-There is nothing to compile and no package to install. Clone the repository and install the
-dependencies listed above.
+This repository ships no custom package, so there is nothing here to compile or install: the scripts
+are run in place. What you do need to install is the third-party dependencies listed above.
 
 ```bash
 git clone https://github.com/FlynnLab/rPAL-seq.git
@@ -74,7 +74,11 @@ conda activate rpalseq
 Rscript -e 'if (!requireNamespace("BiocManager", quietly=TRUE)) install.packages("BiocManager", repos="https://cloud.r-project.org"); BiocManager::install(c("DESeq2","limma")); install.packages(c("dplyr","readr","tidyr","stringr","purrr","tibble","ggplot2","ggrepel","scales","eulerr","ComplexUpset"), repos="https://cloud.r-project.org")'
 ```
 
-`cpup` is not on conda; install it from [its repository](https://github.com/y9c/cpup).
+`cpup` is the one non-standard tool and is not packaged on conda or CRAN. Install it separately from
+[github.com/y9c/cpup](https://github.com/y9c/cpup), following the instructions there, and make sure the
+binary is on your `PATH`. It is only needed for the per-base pileup step
+(`scripts/workflow/bash/worker/cpup.sh`) and the variant-signature analysis that consumes its output;
+the transcript-count arm and the demo run without it.
 
 Typical install time on a normal desktop computer: about 5 minutes for the conda environment and 10
 to 20 minutes for the R packages, dominated by compiling the Bioconductor dependencies. Cloning the
@@ -82,69 +86,9 @@ repository itself takes seconds.
 
 ## Demo
 
-A worked example that reproduces the transcript-level glycoRNA calls for HeLa from publicly available
-processed data. It exercises the analysis half of the pipeline and needs no cluster, no alignment
-index and no FASTQ download.
-
-### Get the demo data
-
-The processed count matrix is a supplementary file of GEO accession
-[GSE308686](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE308686) and is 0.2 MB compressed:
-
-```bash
-mkdir -p demo_run && cd demo_run
-curl -O https://ftp.ncbi.nlm.nih.gov/geo/series/GSE308nnn/GSE308686/suppl/GSE308686_count_matrix_homo.csv.gz
-gunzip GSE308686_count_matrix_homo.csv.gz
-cp ../demo/metadata_demo.csv .
-```
-
-`GSE308686_count_matrix_homo.csv` holds 2,317 transcripts across 196 libraries.
-`demo/metadata_demo.csv` selects the four HeLa biological replicates (`VH1` to `VH4`); the scripts
-append the `i`/`p`/`h` suffixes to reach the Input, IP and Control library of each replicate, so the
-example runs on 12 of those 196 columns.
-
-### Run it
-
-Both scripts read their inputs from paths declared at the top of the file (see Instructions for use).
-Point them at the demo files, then run from inside `demo_run`:
-
-```bash
-sed -e 's|/path/to/count_matrix.csv|GSE308686_count_matrix_homo.csv|' \
-    -e 's|/path/to/metadata.csv|metadata_demo.csv|' \
-    -e 's|/path/to/transcriptome/annotation.csv|../data/annotation/transcript2family_homo.csv|' \
-    ../scripts/analysis/R/counts_analysis/deseq2_pairwise_lrrna_norm.R > step1.R
-
-sed -e 's|/path/to/metadata.csv|metadata_demo.csv|' \
-    ../scripts/analysis/R/counts_analysis/tp_wald_sizeadjust.R > step2.R
-
-Rscript step1.R    # DESeq2 IP-vs-Input and Control-vs-Input, long-rRNA normalized
-Rscript step2.R    # post hoc Wald test against the mock-release control
-```
-
-### Expected output
-
-```
-deseq2_results_pI_HeLa.csv    IP vs Input contrast
-deseq2_results_cI_HeLa.csv    Control vs Input contrast
-wald_all_HeLa.csv             every transcript with both contrasts and the delta statistic
-wald_dir_HeLa.csv             the directional subset (log2FC IP/Input > 0.5)
-wald_TP_HeLa.csv              216 true-positive glycoRNA calls
-```
-
-`wald_TP_HeLa.csv` carries 216 rows and 21 columns. The strongest calls are small nuclear and
-nucleolar RNAs and a pre-miRNA, for example `snRNA_LOC124906135_29211` at log2FC 2.96, matching the
-biotype composition of the example volcano in `doc/volcano_tp_example.png`.
-
-### Expected run time
-
-About 10 to 12 seconds total: 7 to 9 seconds for `step1.R` and about 3 seconds for `step2.R`, over two
-runs on an 8-core Apple M3 with 8 GB of RAM under macOS 14.2. That measurement used R 4.6.0 with DESeq2 1.52.0
-and limma 3.68.3 rather than the pinned versions above; the timing is not sensitive to the difference,
-but exact numeric output can shift slightly between DESeq2 releases.
-
-To exercise the per-base variant arm as well, `GSE308686_counts_long.csv.gz` from the same accession
-is the corresponding input for `scripts/analysis/R/variant_analysis/`. It is 117 MB compressed and so
-is not part of the quick demo.
+A worked example reproduces the HeLa glycoRNA calls from a 0.2 MB public download, with expected
+output and run time, in about 10 to 12 seconds on a laptop. No cluster, alignment index or FASTQ
+needed. See **[demo/README.md](demo/README.md)**.
 
 ## Repository Structure
 ```text
