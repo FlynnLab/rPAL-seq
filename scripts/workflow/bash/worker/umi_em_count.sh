@@ -8,7 +8,7 @@ source /path/to/venv/bin/activate
 # Set WORKDIR if not externally defined
 WORKDIR="${WORKDIR:-/path/to/workdir}"
 
-SCRIPTS_DIR="/path/to/rPAL-seq/scripts"
+SCRIPTS_DIR="/path/to/rPAL-seq/scripts/workflow"
 OUTPUT_DIR="$WORKDIR/umi_em"
 STATS_DIR="$OUTPUT_DIR/stats"
 STEP1_DIR="$OUTPUT_DIR/step1"
@@ -119,7 +119,7 @@ else
         UMI_LEN_OPT="--umi-length ${UMI_LENGTH}"
     fi
 
-    python "$SCRIPTS_DIR/umi_em_dedup.py" "$QNAME_BAM" \
+    python "$SCRIPTS_DIR/python/umi_em_dedup.py" "$QNAME_BAM" \
       --phase em \
       --out-counts "$COUNTS_TSV" \
       --umi-from "$UMI_FROM" \
