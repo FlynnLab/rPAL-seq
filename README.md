@@ -18,7 +18,11 @@ Command-line tools:
 | `cutadapt` | 4.9 |
 | `bowtie2` | 2.5.4 |
 | `samtools` | 1.21 |
+| [GNU `parallel`](https://www.gnu.org/software/parallel/) | any recent |
 | `cpup` | 0.1 |
+
+GNU `parallel` is used only by the SLURM wrappers in `scripts/workflow/bash/slurm/` to fan out over
+samples; the worker scripts themselves do not need it.
 
 R packages: `DESeq2` 1.42.1, `limma` 3.58.1, plus `dplyr`, `readr`, `tidyr`, `stringr`, `purrr`,
 `tibble`, `ggplot2`, `ggrepel`, `scales`, `eulerr` and `ComplexUpset` for the plotting scripts.
@@ -35,25 +39,12 @@ The versions above are the ones the published analysis was run with, not minimum
 No non-standard hardware is required, but the two halves of the pipeline have very different
 appetites.
 
-**Preprocessing** (`scripts/workflow/`) is written for a cluster with a SLURM scheduler. The batch
-scripts under `scripts/workflow/bash/slurm/` request, per job across a whole cohort:
-
-| step | tasks x cpus | memory | walltime |
-| --- | --- | --- | --- |
-| `cutadapt_batch.sh` | 6 x 8 | 64 GB | 4 h |
-| `bowtie2_batch.sh` | 4 x 8 | 32 GB | 8 h |
-| `umi_em_count_batch.sh` | 4 x 2 | 64 GB | 12 h |
-| `umi_em_bam_batch.sh` | 4 x 4 | 64 GB | 16 h |
-| `cpup_batch.sh` | 4 x 1 | 32 GB | 8 h |
-
-Those are the allocations the jobs request, not measured peak usage, and they cover several samples
-running in parallel. A single sample needs roughly the memory divided by the task count. If you have
-no scheduler, the worker scripts in `scripts/workflow/bash/worker/` are plain bash and run standalone
-(see Installation), so a workstation with 8 or more cores and 32 GB of RAM can process samples
-serially.
-
-**Analysis** (`scripts/analysis/`) runs comfortably on a laptop. The worked example below completes in
-about 12 seconds on an 8-core machine with 8 GB of RAM.
+- **Preprocessing** (`scripts/workflow/`) is written for a cluster with a SLURM scheduler. Without
+  one, the worker scripts run standalone and a workstation with 8 or more cores and 32 GB of RAM can
+  process samples serially. Per-step resource requests are in
+  [scripts/workflow/README.md](scripts/workflow/README.md).
+- **Analysis** (`scripts/analysis/`) runs comfortably on a laptop: the worked example completes in
+  about 10 to 12 seconds on an 8-core machine with 8 GB of RAM.
 
 ## Installation
 
@@ -98,7 +89,7 @@ repo-root/
 │   ├── manaz_families/     # curated family lists
 │   └── transcriptome/      # curated FASTA reference, and the spike-in references
 ├── scripts/                # pipeline and analysis scripts
-│   ├── workflow/           
+│   ├── workflow/           # see scripts/workflow/README.md
 │   │   ├── bash/           # preprocessing, alignment, run EM
 │   │   └── python/         # EM posterior assignment
 │   ├── analysis/
@@ -108,7 +99,7 @@ repo-root/
 │       ├── spike_titration/    # synthetic sialoglycoRNA standard, dose-response
 │       ├── coverage/           # 5' coverage retention
 │       └── classification/     # ROC / LOOCV lineage and EV classification
-├── demo/                   # metadata for the worked example in this README
+├── demo/                   # worked example; see demo/README.md
 ├── doc/                    # workflow diagrams, example output
 ├── LICENSE
 └── README.md
