@@ -196,9 +196,16 @@ flowchart TD
 
 ## License
 
-Released under the GNU General Public License v3.0 or later (GPL-3.0-or-later), an OSI-approved
-license. The full text is in [LICENSE](LICENSE). There are no restrictions on access or reuse beyond
-the terms of that license.
+rPAL-seq is free software: you can redistribute it and/or modify it under the terms of the GNU General
+Public License as published by the Free Software Foundation, **either version 3 of the License, or (at
+your option) any later version**. The full text is in [LICENSE](LICENSE).
+
+The SPDX identifier is therefore `GPL-3.0-or-later`, an OSI-approved license. GitHub's automatic
+detection reports `GPL-3.0` instead: the GPLv3 text is byte-identical whether or not the "any later
+version" option is elected, so no tool can infer the election from `LICENSE` alone. It is a statement
+by the copyright holder, which is why it is made here rather than left to detection.
+
+There are no restrictions on access or reuse beyond the terms of that license.
 
 ## Citing
 
