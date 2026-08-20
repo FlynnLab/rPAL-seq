@@ -1,7 +1,6 @@
 {
   "upload_type": "software",
   "title": "rPAL-seq: pipeline for glycoRNA sequencing and analysis",
-  "version": "1.0.0",
   "language": "eng",
   "access_right": "open",
   "license": "GPL-3.0-or-later",
